@@ -34,4 +34,8 @@ public class JsoupConnector {
     public String getPathByUrl() throws MalformedURLException {
         return new URL(url).getPath();
     }
+
+    public String getHost() throws MalformedURLException {
+        return new URL(url).getHost();
+    }
 }

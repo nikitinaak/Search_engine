@@ -29,4 +29,5 @@ public class Link implements Comparable{
         String[] array = link.split(":?/+");
         return array[0] + "://" + array[1];
     }
+
 }

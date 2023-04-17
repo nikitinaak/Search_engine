@@ -74,7 +74,8 @@ public class RecursiveParser extends RecursiveAction {
     }
 
     private boolean notExistInDB(JsoupConnector connector) throws MalformedURLException {
-        return pageRepository.findByPathAndSiteId(connector.getPathByUrl(), siteEntity.getSiteId()) == null;
+        return pageRepository.findByPathAndSiteId(connector.getPathByUrl(),
+                siteEntity.getSiteId()) == null;
     }
 
     private boolean workableLink(Link link) {
@@ -93,14 +94,24 @@ public class RecursiveParser extends RecursiveAction {
     protected void compute() {
         ArrayList<RecursiveParser> tasks = new ArrayList<>();
         for (Link child : currentLink.getChildren()) {
-            tasks.add(new RecursiveParser(child, firstStart, stopped, jsoupSettings, siteEntity,
-                    pageRepository));
+            RecursiveParser task = new RecursiveParser(child, firstStart, stopped,
+                    jsoupSettings, siteEntity, pageRepository);
+            if (task.stopped) {
+                visitedLink = new ConcurrentSkipListSet<>();
+                return;
+            }
+            tasks.add(task);
         }
         for (RecursiveParser task : tasks) {
+            if (task.stopped) {
+                tasks.clear();
+                visitedLink = new ConcurrentSkipListSet<>();
+                return;
+            }
             task.fork();
         }
         for (RecursiveParser task : tasks) {
-            if (stopped) {
+            if (task.stopped) {
                 tasks.clear();
                 visitedLink = new ConcurrentSkipListSet<>();
                 return;
