@@ -1,4 +1,4 @@
-package searchengine.dto.indexing;
+package searchengine.services.indexing;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -7,7 +7,7 @@ import org.apache.logging.log4j.MarkerManager;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import searchengine.config.Jsoup;
+import searchengine.config.JsoupSetting;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.PageRepository;
@@ -21,23 +21,24 @@ public class RecursiveParser extends RecursiveAction {
     private static Logger logger = LogManager.getLogger(RecursiveParser.class);
     private static Marker FIND_LINK_MARKER = MarkerManager.getMarker("FIND_LINK");
 
+    private static volatile boolean stopped;
+
     private final Link currentLink;
-    private final Jsoup jsoupSettings;
-    private final SiteEntity siteEntity;
-    private final PageRepository pageRepository;
     private volatile boolean firstStart;
-    private volatile boolean stopped;
+
+    private SiteEntity siteEntity;
+    private PageRepository pageRepository;
+    private JsoupSetting jsoupSettings;
 
     private static ConcurrentSkipListSet<Link> visitedLink = new ConcurrentSkipListSet<>();
 
-    public RecursiveParser(Link currentLink, boolean firstStart, boolean stopped,
-                           Jsoup jsoupSettings, SiteEntity siteEntity, PageRepository pageRepository) {
+    public RecursiveParser(Link currentLink, boolean firstStart, SiteEntity siteEntity,
+                           PageRepository pageRepository, JsoupSetting jsoupSettings) {
         this.currentLink = currentLink;
-        this.jsoupSettings = jsoupSettings;
+        this.firstStart = firstStart;
         this.siteEntity = siteEntity;
         this.pageRepository = pageRepository;
-        this.firstStart = firstStart;
-        this.stopped = stopped;
+        this.jsoupSettings = jsoupSettings;
         visitedLink.add(currentLink);
         parse();
     }
@@ -60,17 +61,32 @@ public class RecursiveParser extends RecursiveAction {
                     newLink.setLink(currentLink.getHost() + newLink.getLink());
                 }
                 JsoupConnector connector = new JsoupConnector(newLink.getLink(), jsoupSettings);
-                if (workableLink(newLink) && notExistInDB(connector)) {
-                    pageRepository.save(new PageEntity(siteEntity, connector.getPathByUrl(),
-                            connector.getStatusConnectionCode(), connector.getContent()));
-
+                if (isWorkableLink(newLink) && notExistInDB(connector)) {
+                    PageEntity pageEntity = new PageEntity(siteEntity, connector.getPathByUrl(),
+                            connector.getStatusConnectionCode(), connector.getContent());
+                    if (isStatusCodeWrong(pageEntity.getCode())) {
+                        continue;
+                    }
+                    pageRepository.save(pageEntity);
                     currentLink.addChild(newLink);
                     logger.info(FIND_LINK_MARKER, newLink.getLink());
                 }
+                if (stopped) {
+                    return;
+                }
             }
         } catch (Exception e) {
+            logger.error(e.getStackTrace());
             logger.error(e.getMessage());
         }
+    }
+
+    public static void setStopped(boolean stopped) {
+        RecursiveParser.stopped = stopped;
+    }
+
+    private boolean isStatusCodeWrong(int code) {
+        return String.valueOf(code).startsWith("4") || String.valueOf(code).startsWith("5");
     }
 
     private boolean notExistInDB(JsoupConnector connector) throws MalformedURLException {
@@ -78,7 +94,7 @@ public class RecursiveParser extends RecursiveAction {
                 siteEntity.getSiteId()) == null;
     }
 
-    private boolean workableLink(Link link) {
+    private boolean isWorkableLink(Link link) {
         return  !visitedLink.contains(link)
                 && !link.getLink().equals(currentLink.getLink())
                 && link.getLink().startsWith(currentLink.getHost())
@@ -94,26 +110,23 @@ public class RecursiveParser extends RecursiveAction {
     protected void compute() {
         ArrayList<RecursiveParser> tasks = new ArrayList<>();
         for (Link child : currentLink.getChildren()) {
-            RecursiveParser task = new RecursiveParser(child, firstStart, stopped,
-                    jsoupSettings, siteEntity, pageRepository);
-            if (task.stopped) {
-                visitedLink = new ConcurrentSkipListSet<>();
+            RecursiveParser task = new RecursiveParser(child, firstStart, siteEntity,
+                    pageRepository, jsoupSettings);
+            if (stopped) {
                 return;
             }
             tasks.add(task);
         }
         for (RecursiveParser task : tasks) {
-            if (task.stopped) {
+            if (stopped) {
                 tasks.clear();
-                visitedLink = new ConcurrentSkipListSet<>();
                 return;
             }
             task.fork();
         }
         for (RecursiveParser task : tasks) {
-            if (task.stopped) {
+            if (stopped) {
                 tasks.clear();
-                visitedLink = new ConcurrentSkipListSet<>();
                 return;
             }
             task.join();

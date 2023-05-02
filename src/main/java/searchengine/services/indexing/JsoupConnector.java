@@ -1,8 +1,9 @@
-package searchengine.dto.indexing;
+package searchengine.services.indexing;
 
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import searchengine.config.JsoupSetting;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -11,7 +12,7 @@ import java.net.URL;
 @RequiredArgsConstructor
 public class JsoupConnector {
     private final String url;
-    private final searchengine.config.Jsoup jsoupSettings;
+    private final JsoupSetting jsoupSettings;
 
     public Document getConnection() throws IOException {
         return Jsoup.connect(url)

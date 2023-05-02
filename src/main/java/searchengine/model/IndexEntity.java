@@ -3,6 +3,8 @@ package searchengine.model;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 
@@ -18,12 +20,14 @@ public class IndexEntity {
     @Column(name = "id", nullable = false)
     private int indexId;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private PageEntity page;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "lemma_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private LemmaEntity lemma;
 
     @Column(name = "`rank`", nullable = false)

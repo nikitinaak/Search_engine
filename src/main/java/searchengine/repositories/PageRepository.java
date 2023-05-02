@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.PageEntity;
 
+import java.util.List;
 
 @Transactional
 public interface PageRepository extends JpaRepository<PageEntity, Integer> {
@@ -17,8 +18,15 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
     @Query(value = "SELECT * FROM `pages` WHERE `path` = :path AND `site_id` = :siteId", nativeQuery = true)
     PageEntity findByPathAndSiteId(String path, int siteId);
 
-    PageEntity findPageEntityByPageId(int pageId);
+    @Query(value = "SELECT * FROM `pages` WHERE `site_id` = :siteId", nativeQuery = true)
+    List<PageEntity> findAllPagesBySiteId(int siteId);
+
+    @Query(value = "SELECT COUNT(*) FROM `pages` WHERE `site_id` = :siteId", nativeQuery = true)
+    int findCountPagesBySiteId(int siteId);
 
     @Modifying
-    void deletePageEntityByPageId(int pageId);
+    @Query(value = "DELETE FROM `pages` WHERE `site_id` = :siteId", nativeQuery = true)
+    void deletePagesBySiteId(int siteId);
+
+
 }
