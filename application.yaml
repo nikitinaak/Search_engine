@@ -10,6 +10,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
+        jdbc:
+          batch-size: 5
+        order_inserts: true
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -18,8 +21,8 @@ indexing-settings:
   sites:
 #    - url: https://lenta.ru
 #      name: Лента.ру
-    - url: https://skillbox.ru
-      name: Skillbox
+#    - url: https://skillbox.ru
+#      name: Skillbox
 #    - url: http://playback.ru
 #      name: PlayBack.Ru
     - url: https://dombulgakova.ru

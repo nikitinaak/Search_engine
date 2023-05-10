@@ -5,6 +5,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.LemmaEntity;
+import searchengine.model.SiteEntity;
+
+import java.util.Optional;
 
 @Transactional
 public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
@@ -14,12 +17,13 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
     void resetId();
 
     @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
-    LemmaEntity findByLemmaAndSiteId(String lemma, int siteId);
+    Optional<LemmaEntity> findByLemmaAndSiteId(String lemma, int siteId);
 
-    @Query(value = "SELECT COUNT(*) FROM `lemmas` WHERE `site_id` = :siteId", nativeQuery = true)
-    int findCountLemmasBySiteId(int siteId);
+    int countAllLemmaEntityBySite(SiteEntity site);
+
+    @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
+    Optional<LemmaEntity> findLemmaByLemmaAndSiteId(String lemma, int siteId);
 
     @Modifying
-    @Query(value = "DELETE FROM `lemmas` WHERE `site_id` = :siteId", nativeQuery = true)
-    void deleteBySiteId(int siteId);
+    void deleteAllLemmaEntityBySite(SiteEntity site);
 }

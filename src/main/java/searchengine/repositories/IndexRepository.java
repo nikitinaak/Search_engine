@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.IndexEntity;
+import searchengine.model.PageEntity;
 
 import java.util.List;
+import java.util.Optional;
 
 @Transactional
 public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
@@ -16,9 +18,14 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
     void resetId();
 
     @Modifying
-    @Query(value = "DELETE FROM `indexest` WHERE `page_id` = :pageId", nativeQuery = true)
-    void deleteByPage(int pageId);
+    void deleteIndexEntityByPage(PageEntity page);
 
-    @Query(value = "SELECT * FROM `indexest` WHERE `page_id` = :pageId", nativeQuery = true)
-    List<IndexEntity> findAllIndexEntityByPageId(int pageId);
+    List<IndexEntity> findAllIndexEntityByPage(PageEntity page);
+
+    @Query(value = "SELECT * FROM `indexest` WHERE `page_id` = :pageId AND `lemma_id` = :lemmaId",
+            nativeQuery = true)
+    Optional<IndexEntity> findByPageIdAndLemmaId(int pageId, int lemmaId);
+
+    @Query(value = "SELECT `page_id` FROM `indexest` WHERE `lemma_id` = :lemmaId", nativeQuery = true)
+    List<Integer> findAllPageIdByLemmaId(int lemmaId);
 }

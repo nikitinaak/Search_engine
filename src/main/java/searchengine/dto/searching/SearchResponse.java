@@ -1,0 +1,14 @@
+package searchengine.dto.searching;
+
+import lombok.Data;
+import lombok.Setter;
+import searchengine.dto.responses.Response;
+
+import java.util.List;
+
+@Data
+public class SearchResponse implements Response {
+    private boolean result;
+    private int count;
+    private List<SearchData> data;
+}

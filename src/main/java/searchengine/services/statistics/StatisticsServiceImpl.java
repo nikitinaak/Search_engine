@@ -6,18 +6,17 @@ import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.DetailedStatisticsItem;
 import searchengine.dto.statistics.StatisticsData;
-import searchengine.dto.responses.StatisticsResponse;
+import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
+import searchengine.services.StatisticsService;
 
 import java.sql.Timestamp;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -46,10 +45,10 @@ public class StatisticsServiceImpl implements StatisticsService {
             dSI.setStatus(String.valueOf(siteEntity.getStatus()));
             dSI.setStatusTime(Timestamp.valueOf(siteEntity.getStatusTime()).getTime());
             if (siteEntity.getLastError() != null) dSI.setError(siteEntity.getLastError());
-            int pageCount = pageRepository.findCountPagesBySiteId(siteEntity.getSiteId());
+            int pageCount = pageRepository.countAllPageEntityBySite(siteEntity);
             dSI.setPages(pageCount);
             pages += pageCount;
-            int lemmaCount = lemmaRepository.findCountLemmasBySiteId(siteEntity.getSiteId());
+            int lemmaCount = lemmaRepository.countAllLemmaEntityBySite(siteEntity);
             dSI.setLemmas(lemmaCount);
             lemmas += lemmaCount;
             statisticsItems.add(dSI);

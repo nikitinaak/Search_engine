@@ -1,36 +1,28 @@
 package searchengine.controllers;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
+import org.springframework.web.bind.annotation.*;
+import searchengine.dto.responses.FalseResponse;
 import searchengine.dto.responses.Response;
 import searchengine.dto.responses.TrueResponse;
-import searchengine.services.indexing.IndexingPageService;
-import searchengine.services.indexing.IndexingService;
-import searchengine.services.statistics.StatisticsService;
-import searchengine.services.indexing.LemmaHandlerService;
+import searchengine.services.SearchService;
+import searchengine.services.IndexingService;
+import searchengine.services.StatisticsService;
 
 import java.io.IOException;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api")
 public class ApiController {
 
     private final StatisticsService statisticsService;
     private final IndexingService indexingService;
-    private final IndexingPageService indexingPageService;
-
-
-
-    public ApiController(StatisticsService statisticsService, IndexingService indexingService,
-                         IndexingPageService indexingPageService) {
-        this.statisticsService = statisticsService;
-        this.indexingService = indexingService;
-        this.indexingPageService = indexingPageService;
-    }
+    private final SearchService searchService;
 
     @GetMapping("/statistics")
     public ResponseEntity<Response> statistics() {
@@ -50,14 +42,29 @@ public class ApiController {
     @PostMapping("/indexPage")
     public ResponseEntity<Response> indexPage(String url) {
         try {
-            Response response = indexingPageService.indexPage(url);
+            Response response = indexingService.indexPage(url);
             if (response instanceof TrueResponse) {
                 return ResponseEntity.ok(response);
             } else {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
         } catch (IOException e) {
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+            return new ResponseEntity<>(new FalseResponse(false, "Указанная стараница не найдена"),
+                    HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Response> search(@RequestParam @NonNull String query,
+                                           @RequestParam @Nullable String site,
+                                           @RequestParam(defaultValue = "0") int offset,
+                                           @RequestParam(defaultValue = "20") int limit) {
+        try {
+            return new ResponseEntity<>(searchService.search(query, site, offset, limit),
+                        HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(new FalseResponse(false, "Указанная страница не найдена"),
+                    HttpStatus.NOT_FOUND);
         }
     }
 }
