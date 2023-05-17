@@ -21,10 +21,10 @@ indexing-settings:
   sites:
 #    - url: https://lenta.ru
 #      name: Лента.ру
-#    - url: https://skillbox.ru
-#      name: Skillbox
-#    - url: http://playback.ru
-#      name: PlayBack.Ru
+    - url: https://skillbox.ru
+      name: Skillbox
+    - url: http://playback.ru
+      name: PlayBack.Ru
     - url: https://dombulgakova.ru
       name: Дом Булгакова
 

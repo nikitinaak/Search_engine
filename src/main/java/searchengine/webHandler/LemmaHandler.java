@@ -11,8 +11,10 @@ import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
 import searchengine.config.LemmaConfig;
 import searchengine.model.*;
+import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 
+import javax.persistence.NonUniqueResultException;
 import java.io.IOException;
 import java.util.*;
 
@@ -26,23 +28,27 @@ public class LemmaHandler {
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "ЧАСТ"};
 
     private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
 
-    public Map<LemmaEntity, Integer> indexingPage(PageEntity page) {
+    public void indexingPage(PageEntity page) {
         logger.info(INDEXING_PAGE_MARKER, "Индексирует старницу: " + page.getPath());
         Map<LemmaEntity, Integer> mapLemmasAndRank = new HashMap<>();
         SiteEntity siteEntity = page.getSite();
         Map<String, Integer> lemmasMap = collectLemmas(page);
         for (Map.Entry<String, Integer> mapEntry : lemmasMap.entrySet()) {
-            Optional<LemmaEntity> lemmaEntity =
-                    lemmaRepository.findByLemmaAndSiteId(mapEntry.getKey(), siteEntity.getSiteId());
+            Optional<LemmaEntity> lemmaEntity = lemmaRepository.findFirstByLemmaAndSiteId(mapEntry.getKey(), siteEntity.getSiteId());
             if (lemmaEntity.isPresent()) {
                 lemmaEntity.get().setFrequency(lemmaEntity.get().getFrequency() + 1);
             } else {
                 LemmaEntity lemma = new LemmaEntity(siteEntity, mapEntry.getKey(), 1);
-                mapLemmasAndRank.put(lemma, mapEntry.getValue());
+                try {
+                    lemmaRepository.save(lemma);
+                    indexRepository.save(new IndexEntity(page, lemma, mapEntry.getValue()));
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                }
             }
         }
-        return mapLemmasAndRank;
     }
 
     private HashMap<String, Integer> collectLemmas(PageEntity pageEntity) {

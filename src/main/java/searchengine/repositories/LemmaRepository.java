@@ -16,8 +16,9 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
     @Query(value = "ALTER TABLE `lemmas` AUTO_INCREMENT = 0", nativeQuery = true)
     void resetId();
 
-    @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
-    Optional<LemmaEntity> findByLemmaAndSiteId(String lemma, int siteId);
+    @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId LIMIT 1",
+            nativeQuery = true)
+    Optional<LemmaEntity> findFirstByLemmaAndSiteId(String lemma, int siteId);
 
     int countAllLemmaEntityBySite(SiteEntity site);
 

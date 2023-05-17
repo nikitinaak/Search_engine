@@ -20,11 +20,8 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
     @Query(value = "SELECT * FROM `pages` WHERE `path` = :path AND `site_id` = :siteId", nativeQuery = true)
     Optional<PageEntity> findByPathAndSiteId(String path, int siteId);
 
-    List<PageEntity> findAllPageEntityBySite(SiteEntity site);
-
     int countAllPageEntityBySite(SiteEntity site);
 
-    @Modifying
-    void deleteAllPageEntityBySite(SiteEntity site);
+    List<PageEntity> findFirst1000PageEntityBySite(SiteEntity site);
 
 }

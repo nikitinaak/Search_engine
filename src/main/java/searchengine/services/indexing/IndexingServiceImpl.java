@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
-import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 import searchengine.config.JsoupSetting;
 import searchengine.config.Site;
@@ -103,17 +102,20 @@ public class IndexingServiceImpl implements IndexingService {
                 pageRepository.findByPathAndSiteId(jsoupConnector.getPathByUrl(),
                 siteEntity.getSiteId());
         PageEntity pageEntity;
-
-        if (optionalPageEntity.isPresent()) {
-            pageEntity = optionalPageEntity.get();
-            cleanDBFromPageAndLemmas(pageEntity);
-        } else {
-            pageEntity = new PageEntity(siteEntity, jsoupConnector.getPathByUrl(),
-                    jsoupConnector.getStatusConnectionCode(), jsoupConnector.getContent());
-            pageRepository.save(pageEntity);
-        }
-        if (isSiteStatusCodeOk(pageEntity)) {
-            saveLemmaAndIndexInDB(lemmaHandler.indexingPage(pageEntity), pageEntity);
+        try {
+            if (optionalPageEntity.isPresent()) {
+                pageEntity = optionalPageEntity.get();
+                cleanDBFromPageAndLemmas(pageEntity);
+            } else {
+                pageEntity = new PageEntity(siteEntity, jsoupConnector.getPathByUrl(),
+                        jsoupConnector.getStatusConnectionCode(), jsoupConnector.getContent());
+                pageRepository.save(pageEntity);
+            }
+            if (isSiteStatusCodeOk(pageEntity)) {
+                lemmaHandler.indexingPage(pageEntity);
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage());
         }
         response = new TrueResponse(true);
         logger.info(RESPONSE_MARKER);
@@ -144,7 +146,9 @@ public class IndexingServiceImpl implements IndexingService {
         for (SiteEntity site : sites) {
             indexRepository.deleteAll();
             lemmaRepository.deleteAllLemmaEntityBySite(site);
-            pageRepository.deleteAllPageEntityBySite(site);
+            while (pageRepository.countAllPageEntityBySite(site) != 0) {
+                pageRepository.deleteAll(pageRepository.findFirst1000PageEntityBySite(site));
+            }
         }
         siteRepository.deleteAll(sites);
         indexRepository.resetId();
@@ -162,65 +166,28 @@ public class IndexingServiceImpl implements IndexingService {
             Link rootLink = new Link(site.getUrl());
             try {
                 RecursiveParser recursiveParser = new RecursiveParser(rootLink, firstStart,
-                        jsoupSettings);
+                        jsoupSettings, siteEntity, pageRepository, indexRepository,
+                        lemmaRepository, lemmaHandler);
                 RecursiveParser.setStopped(false);
-                Set<String> linksSet = forkJoinPool.invoke(recursiveParser);
-                if (stopped) return;
-                indexingSite(linksSet, siteEntity);
-                updateSiteEntity(siteEntity, Status.INDEXED, "");
-                indexingPages(siteEntity);
+                forkJoinPool.invoke(recursiveParser);
+                if (stopped) {
+                    updateSiteEntity(siteEntity, Status.FAILED, "Индексация прервана пользователем");
+                    return;
+                }
+                if (pageRepository.countAllPageEntityBySite(siteEntity) == 0) {
+                    updateSiteEntity(siteEntity, Status.FAILED,
+                            "Главная страница сайта недоступна");
+                } else {
+                    updateSiteEntity(siteEntity, Status.INDEXED, "");
+                }
             } catch (Exception e) {
-                updateSiteEntity(siteEntity, Status.FAILED, String.valueOf(e.getStackTrace()));
+                updateSiteEntity(siteEntity, Status.FAILED, e.getMessage());
                 indexingInProcess = false;
             }
             logger.info(RESPONSE_MARKER,
                     "Сайт проиндексирован за " + (System.currentTimeMillis() - start));
         }
         setResponse(true, "");
-    }
-
-    private void indexingSite(Set<String> linksSet, SiteEntity siteEntity) {
-        for (String link : linksSet) {
-            JsoupConnector connector = new JsoupConnector(link, jsoupSettings);
-            try {
-            PageEntity pageEntity = new PageEntity(siteEntity, connector.getPathByUrl(),
-                        connector.getStatusConnectionCode(), connector.getContent());
-                pageRepository.saveAndFlush(pageEntity);
-
-
-            } catch (Exception e) {
-                logger.error(e.getMessage());
-            }
-
-        }
-    }
-
-    private void indexingPages(SiteEntity siteEntity) {
-        List<PageEntity> pages = pageRepository.findAllPageEntityBySite(siteEntity);
-        if (pages.isEmpty()) {
-            return;
-        }
-        for (PageEntity page : pages) {
-            if (isSiteStatusCodeOk(page)) {
-                try {
-                    saveLemmaAndIndexInDB(lemmaHandler.indexingPage(page), page);
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void saveLemmaAndIndexInDB(Map<LemmaEntity, Integer> mapLemmaAndRank, PageEntity pageEntity) {
-        for (Map.Entry<LemmaEntity, Integer> entry : mapLemmaAndRank.entrySet()) {
-            try {
-                lemmaRepository.save(entry.getKey());
-                IndexEntity indexEntity = new IndexEntity(pageEntity, entry.getKey(), entry.getValue());
-                indexRepository.save(indexEntity);
-            } catch (Exception e) {
-                logger.error(e.getMessage());
-            }
-        }
     }
 
     private boolean isSiteStatusCodeOk(PageEntity page) {

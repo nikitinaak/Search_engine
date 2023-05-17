@@ -1,7 +1,10 @@
 package searchengine.webHandler;
 
 import lombok.Data;
+import org.jsoup.Jsoup;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,4 +33,7 @@ public class Link implements Comparable{
         return array[0] + "://" + array[1];
     }
 
+    public String getPath() throws MalformedURLException {
+        return new URL(link).getPath();
+    }
 }
