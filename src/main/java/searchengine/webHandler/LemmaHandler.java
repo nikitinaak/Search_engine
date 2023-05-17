@@ -14,7 +14,6 @@ import searchengine.model.*;
 import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 
-import javax.persistence.NonUniqueResultException;
 import java.io.IOException;
 import java.util.*;
 
@@ -32,13 +31,18 @@ public class LemmaHandler {
 
     public void indexingPage(PageEntity page) {
         logger.info(INDEXING_PAGE_MARKER, "Индексирует старницу: " + page.getPath());
-        Map<LemmaEntity, Integer> mapLemmasAndRank = new HashMap<>();
         SiteEntity siteEntity = page.getSite();
         Map<String, Integer> lemmasMap = collectLemmas(page);
         for (Map.Entry<String, Integer> mapEntry : lemmasMap.entrySet()) {
             Optional<LemmaEntity> lemmaEntity = lemmaRepository.findFirstByLemmaAndSiteId(mapEntry.getKey(), siteEntity.getSiteId());
             if (lemmaEntity.isPresent()) {
-                lemmaEntity.get().setFrequency(lemmaEntity.get().getFrequency() + 1);
+                LemmaEntity lemma = lemmaEntity.get();
+                lemma.setFrequency(lemma.getFrequency() + 1);
+                try {
+                    lemmaRepository.save(lemma);
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                }
             } else {
                 LemmaEntity lemma = new LemmaEntity(siteEntity, mapEntry.getKey(), 1);
                 try {
@@ -74,6 +78,7 @@ public class LemmaHandler {
         }
         return lemmas;
     }
+
     private boolean isIncorrectWordForm(List<String> wordInfo) {
         for (String morphInfo : wordInfo) {
             if (morphInfo.matches(WORD_TYPE_REGEX)) return true;

@@ -61,7 +61,7 @@ public class ApiController {
                                            @RequestParam(defaultValue = "20") int limit) {
         try {
             return new ResponseEntity<>(searchService.search(query, site, offset, limit),
-                        HttpStatus.OK);
+                    HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(new FalseResponse(false, "Указанная страница не найдена"),
                     HttpStatus.NOT_FOUND);

@@ -40,11 +40,11 @@ public class SearchServiceImpl implements SearchService {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
-    private final int frequencyValue = 150;
+    private final int frequencyValue = 500;
     private static LuceneMorphology luceneMorphology;
 
     @Override
-    public Response search(String query, String site, int offset, int limit) throws IOException{
+    public Response search(String query, String site, int offset, int limit) throws IOException {
         if (query == null || query.isEmpty()) {
             return new FalseResponse(false, "Пустой поисковый запрос");
         }
@@ -88,7 +88,7 @@ public class SearchServiceImpl implements SearchService {
         return response;
     }
 
-    private List<SearchData> getListSearchData(int siteId, String query, boolean searchAllSites) throws IOException{
+    private List<SearchData> getListSearchData(int siteId, String query, boolean searchAllSites) throws IOException {
         Map<Integer, String> pageIdAndLemmaMap = new HashMap<>();
         Set<Integer> pagesIdWithLemmaSet = new HashSet<>();
         List<Map.Entry<String, Integer>> listMapEntry = getListLemmasAndFrequency(query, siteId);
@@ -131,7 +131,7 @@ public class SearchServiceImpl implements SearchService {
             String normalForm = normalForms.get(0);
             Optional<LemmaEntity> lemmaEntity =
                     lemmaRepository.findLemmaByLemmaAndSiteId(normalForm,
-                    siteId);
+                            siteId);
             lemmaEntity.ifPresent(entity -> mapLemmaAndFrequency.put(normalForm,
                     entity.getFrequency()));
         }
@@ -153,11 +153,11 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private Map<Integer, Float> getPageAndAbsRelevanceMap(Set<Integer> pageIdWithLemmaSet,
-                                                           List<Map.Entry<String, Integer>> listLemmasAndFrequency,
-                                                           int siteId) {
+                                                          List<Map.Entry<String, Integer>> listLemmasAndFrequency,
+                                                          int siteId) {
         Map<Integer, Float> pageAndAbsRelevanceMap = new HashMap<>();
         float maxAbsRelevance = 0.0f;
-        for(Integer pageId : pageIdWithLemmaSet) {
+        for (Integer pageId : pageIdWithLemmaSet) {
             float absRelevance = 0.0f;
             for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
                 int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(), siteId)

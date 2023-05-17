@@ -2,8 +2,6 @@ package searchengine.services.statistics;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import searchengine.config.Site;
-import searchengine.config.SitesList;
 import searchengine.dto.statistics.DetailedStatisticsItem;
 import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
@@ -25,19 +23,17 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
-    private final SitesList sitesList;
 
 
     @Override
     public StatisticsResponse getStatistics() {
         StatisticsResponse response = new StatisticsResponse();
-        List<Site> sites = sitesList.getSites();
         StatisticsData statisticsData = new StatisticsData();
         ArrayList<DetailedStatisticsItem> statisticsItems = new ArrayList<>();
         int pages = 0;
         int lemmas = 0;
-        for (Site site : sites) {
-            SiteEntity siteEntity = siteRepository.findSiteEntityByUrl(site.getUrl());
+        List<SiteEntity> sites = siteRepository.findAll();
+        for (SiteEntity siteEntity : sites) {
             if (siteEntity == null) continue;
             DetailedStatisticsItem dSI = new DetailedStatisticsItem();
             dSI.setName(siteEntity.getName());

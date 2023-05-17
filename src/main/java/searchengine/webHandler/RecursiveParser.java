@@ -9,8 +9,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import searchengine.config.JsoupSetting;
-import searchengine.model.IndexEntity;
-import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.IndexRepository;
@@ -18,7 +16,6 @@ import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.RecursiveAction;
 

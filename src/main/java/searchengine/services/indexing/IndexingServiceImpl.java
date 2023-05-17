@@ -41,7 +41,7 @@ public class IndexingServiceImpl implements IndexingService {
     private final LemmaHandler lemmaHandler;
 
     private final SitesList sitesList;
-    private  final JsoupSetting jsoupSettings;
+    private final JsoupSetting jsoupSettings;
     private ForkJoinPool forkJoinPool = new ForkJoinPool();
     private volatile boolean stopped = false;
     private Response response;
@@ -75,7 +75,7 @@ public class IndexingServiceImpl implements IndexingService {
     }
 
     @Override
-    public Response indexPage(String url) throws IOException{
+    public Response indexPage(String url) throws IOException {
         Link link = new Link(url);
         String host = link.getHost();
         Response response;
@@ -100,7 +100,7 @@ public class IndexingServiceImpl implements IndexingService {
         JsoupConnector jsoupConnector = new JsoupConnector(url, jsoupSettings);
         Optional<PageEntity> optionalPageEntity =
                 pageRepository.findByPathAndSiteId(jsoupConnector.getPathByUrl(),
-                siteEntity.getSiteId());
+                        siteEntity.getSiteId());
         PageEntity pageEntity;
         try {
             if (optionalPageEntity.isPresent()) {
