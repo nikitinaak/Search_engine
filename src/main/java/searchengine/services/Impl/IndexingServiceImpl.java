@@ -1,4 +1,4 @@
-package searchengine.services.indexing;
+package searchengine.services.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -75,51 +75,58 @@ public class IndexingServiceImpl implements IndexingService {
     }
 
     @Override
-    public Response indexPage(String url) throws IOException {
+    public Response indexPage(String url) {
         Link link = new Link(url);
         String host = link.getHost();
-        Response response;
-        SiteEntity siteEntity = siteRepository.findSiteEntityByUrl(host);
-        if (siteEntity == null) {
-            String siteName = "";
-            for (Site site : sitesList.getSites()) {
-                if (site.getUrl().equals(host)) {
-                    siteName = site.getName();
-                }
-            }
+        Optional<SiteEntity> optionalSiteEntity = siteRepository.findSiteEntityByUrl(host);
+        SiteEntity siteEntity;
+        if (optionalSiteEntity.isEmpty()) {
+            String siteName = getSiteName(host);
             if (siteName.isEmpty()) {
-                response = new FalseResponse(false, "Данная страница находится за пределами сайтов, " +
-                        "указанных в конфигурационном файле");
-                logger.info(RESPONSE_MARKER, response);
+                setResponse(false, "Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
                 return response;
             }
             siteEntity = new SiteEntity(host, siteName, Status.INDEXING,
                     LocalDateTime.now());
             siteRepository.save(siteEntity);
+        } else {
+            siteEntity = optionalSiteEntity.get();
         }
-        JsoupConnector jsoupConnector = new JsoupConnector(url, jsoupSettings);
-        Optional<PageEntity> optionalPageEntity =
-                pageRepository.findByPathAndSiteId(jsoupConnector.getPathByUrl(),
-                        siteEntity.getSiteId());
-        PageEntity pageEntity;
         try {
-            if (optionalPageEntity.isPresent()) {
-                pageEntity = optionalPageEntity.get();
-                cleanDBFromPageAndLemmas(pageEntity);
-            } else {
-                pageEntity = new PageEntity(siteEntity, jsoupConnector.getPathByUrl(),
-                        jsoupConnector.getStatusConnectionCode(), jsoupConnector.getContent());
-                pageRepository.save(pageEntity);
-            }
+            PageEntity pageEntity = checkPageEntityIsExistInDB(siteEntity, url);
             if (isSiteStatusCodeOk(pageEntity)) {
                 lemmaHandler.indexingPage(pageEntity);
             }
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
-        response = new TrueResponse(true);
-        logger.info(RESPONSE_MARKER);
+        updateSiteEntity(siteEntity, Status.INDEXED, "");
+        setResponse(true, "");
         return response;
+    }
+
+    private String getSiteName(String host) {
+        for (Site site : sitesList.getSites()) {
+            if (site.getUrl().equals(host)) {
+                return site.getName();
+            }
+        }
+        return "";
+    }
+
+    private PageEntity checkPageEntityIsExistInDB(SiteEntity siteEntity, String url) throws IOException {
+        JsoupConnector jsoupConnector = new JsoupConnector(url, jsoupSettings);
+        Optional<PageEntity> optionalPageEntity =
+                pageRepository.findByPathAndSiteId(jsoupConnector.getPathByUrl(), siteEntity.getSiteId());
+        if (optionalPageEntity.isPresent()) {
+            cleanDBFromPageAndLemmas(optionalPageEntity.get());
+            return optionalPageEntity.get();
+        }
+
+        PageEntity pageEntity = new PageEntity(siteEntity, jsoupConnector.getPathByUrl(),
+                jsoupConnector.getStatusConnectionCode(), jsoupConnector.getContent());
+        pageRepository.save(pageEntity);
+        return pageEntity;
     }
 
     private void cleanDBFromPageAndLemmas(PageEntity pageEntity) {
@@ -160,23 +167,26 @@ public class IndexingServiceImpl implements IndexingService {
     private void webCrawling() {
         for (Site site : sitesList.getSites()) {
             long start = System.currentTimeMillis();
-            SiteEntity siteEntity = new SiteEntity(site.getUrl(), site.getName(), Status.INDEXING,
-                    LocalDateTime.now());
-            siteRepository.save(siteEntity);
+            SiteEntity siteEntity;
+            Optional<SiteEntity> optionalSiteEntity = siteRepository.findSiteEntityByUrl(site.getUrl());
+            if (optionalSiteEntity.isPresent()) {
+                siteEntity = optionalSiteEntity.get();
+                updateSiteEntity(siteEntity, Status.INDEXING, "");
+            } else {
+                siteEntity = new SiteEntity(site.getUrl(), site.getName(), Status.INDEXING,
+                        LocalDateTime.now());
+                siteRepository.save(siteEntity);
+            }
             Link rootLink = new Link(site.getUrl());
             try {
-                RecursiveParser recursiveParser = new RecursiveParser(rootLink, firstStart,
-                        jsoupSettings, siteEntity, pageRepository, indexRepository,
-                        lemmaRepository, lemmaHandler);
-                RecursiveParser.setStopped(false);
-                forkJoinPool.invoke(recursiveParser);
+                forkJoinPool.invoke(new RecursiveParser(rootLink, firstStart, jsoupSettings, siteEntity,
+                        pageRepository, indexRepository, lemmaRepository, lemmaHandler));
                 if (stopped) {
                     updateSiteEntity(siteEntity, Status.FAILED, "Индексация прервана пользователем");
                     return;
                 }
                 if (pageRepository.countAllPageEntityBySite(siteEntity) == 0) {
-                    updateSiteEntity(siteEntity, Status.FAILED,
-                            "Главная страница сайта недоступна");
+                    updateSiteEntity(siteEntity, Status.FAILED, "Главная страница сайта недоступна");
                 } else {
                     updateSiteEntity(siteEntity, Status.INDEXED, "");
                 }
@@ -184,8 +194,7 @@ public class IndexingServiceImpl implements IndexingService {
                 updateSiteEntity(siteEntity, Status.FAILED, e.getMessage());
                 indexingInProcess = false;
             }
-            logger.info(RESPONSE_MARKER,
-                    "Сайт проиндексирован за " + (System.currentTimeMillis() - start));
+            logger.info(RESPONSE_MARKER, "Сайт проиндексирован за " + (System.currentTimeMillis() - start));
         }
         setResponse(true, "");
     }

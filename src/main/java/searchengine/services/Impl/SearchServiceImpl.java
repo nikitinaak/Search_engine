@@ -1,4 +1,4 @@
-package searchengine.services.serching;
+package searchengine.services.Impl;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -33,6 +33,7 @@ import java.util.*;
 public class SearchServiceImpl implements SearchService {
     private static Logger logger = LogManager.getLogger(SearchServiceImpl.class);
     private static Marker SEARCHING_MARKER = MarkerManager.getMarker("SEARCH");
+    private static Marker RESPONSE_MARKER = MarkerManager.getMarker("RESPONSE");
 
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "ЧАСТ"};
 
@@ -40,30 +41,22 @@ public class SearchServiceImpl implements SearchService {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
-    private final int frequencyValue = 500;
+    private final int frequencyValue = 3000;
     private static LuceneMorphology luceneMorphology;
 
     @Override
     public Response search(String query, String site, int offset, int limit) throws IOException {
         if (query == null || query.isEmpty()) {
-            return new FalseResponse(false, "Пустой поисковый запрос");
+            return setResponse(false, null, limit, offset);
         }
-        SearchResponse response = new SearchResponse();
         List<SearchData> searchDataList = new ArrayList<>();
         logger.info(SEARCHING_MARKER, "Поисковый запрос: " + query);
         if (site != null) {
-            SiteEntity siteEntity = siteRepository.findSiteEntityByUrl(site);
-            logger.info(SEARCHING_MARKER, "Поиск по сайту - " + siteEntity.getName());
-            int siteId = siteEntity.getSiteId();
+            Optional<SiteEntity> optionalSiteEntity = siteRepository.findSiteEntityByUrl(site);
+            logger.info(SEARCHING_MARKER, "Поиск по сайту - " + optionalSiteEntity.get().getName());
+            int siteId = optionalSiteEntity.get().getSiteId();
             searchDataList.addAll(getListSearchData(siteId, query, false));
-            response.setResult(true);
-            response.setCount(searchDataList.size());
-            if (searchDataList.size() > limit) {
-                searchDataList = searchDataList.subList(offset, limit);
-            }
-            response.setData(searchDataList);
-            logger.info(SEARCHING_MARKER, "Найдено результатов: " + response.getCount());
-            return response;
+            return setResponse(true, searchDataList, limit, offset);
         }
         List<SiteEntity> siteEntityList = siteRepository.findAll();
         for (SiteEntity siteEntity : siteEntityList) {
@@ -71,21 +64,11 @@ public class SearchServiceImpl implements SearchService {
             searchDataList.addAll(getListSearchData(siteEntity.getSiteId(), query, true));
         }
         if (searchDataList.isEmpty()) {
-            response.setResult(true);
-            response.setCount(0);
-            response.setData(new ArrayList<>());
-            return response;
+            return setResponse(true, new ArrayList<>(), limit, offset);
         }
-        response.setResult(true);
-        response.setCount(searchDataList.size());
         float maxRelevance = searchDataList.stream().sorted().findFirst().get().getRelevance();
         searchDataList.forEach(searchData -> searchData.setRelevance(searchData.getRelevance() / maxRelevance));
-        if (searchDataList.size() > limit) {
-            searchDataList = searchDataList.subList(offset, limit);
-        }
-        response.setData(searchDataList);
-        logger.info(SEARCHING_MARKER, "Найдено результатов: " + response.getCount());
-        return response;
+        return setResponse(true, searchDataList, limit, offset);
     }
 
     private List<SearchData> getListSearchData(int siteId, String query, boolean searchAllSites) throws IOException {
@@ -109,12 +92,10 @@ public class SearchServiceImpl implements SearchService {
             pageAndRelevanceMap = getPageAndAbsRelevanceMap(pagesIdWithLemmaSet, listMapEntry,
                     siteId);
         } else {
-            pageAndRelevanceMap = getPageAndRelRltRelevance(pagesIdWithLemmaSet,
-                    listMapEntry, siteId);
+            pageAndRelevanceMap = getPageAndRelRltRelevance(pagesIdWithLemmaSet, listMapEntry, siteId);
         }
         List<Integer> sortedListPageIdByRelevance = sortPageByRelevance(pageAndRelevanceMap);
-        return collectSearchData(sortedListPageIdByRelevance,
-                pageIdAndLemmaMap, pageAndRelevanceMap);
+        return collectSearchData(sortedListPageIdByRelevance, pageIdAndLemmaMap, pageAndRelevanceMap);
     }
 
     private List<Map.Entry<String, Integer>> getListLemmasAndFrequency(String query, int siteId) throws IOException {
@@ -158,14 +139,7 @@ public class SearchServiceImpl implements SearchService {
         Map<Integer, Float> pageAndAbsRelevanceMap = new HashMap<>();
         float maxAbsRelevance = 0.0f;
         for (Integer pageId : pageIdWithLemmaSet) {
-            float absRelevance = 0.0f;
-            for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
-                int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(), siteId)
-                        .get().getLemmaId();
-                Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
-                        lemmaId);
-                if (indexEntity.isPresent()) absRelevance += indexEntity.get().getRank();
-            }
+            float absRelevance = getAbsoluteRelevance(listLemmasAndFrequency, siteId, pageId);
             if (absRelevance > maxAbsRelevance) maxAbsRelevance = absRelevance;
             pageAndAbsRelevanceMap.put(pageId, absRelevance);
         }
@@ -174,22 +148,41 @@ public class SearchServiceImpl implements SearchService {
         return pageAndAbsRelevanceMap;
     }
 
+    private float getAbsoluteRelevance(List<Map.Entry<String, Integer>> listLemmasAndFrequency,
+                                       int siteId, int pageId) {
+        float absRelevance = 0.0f;
+        for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
+            int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(), siteId)
+                    .get().getLemmaId();
+            Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
+                    lemmaId);
+            if (indexEntity.isPresent()) absRelevance += indexEntity.get().getRank();
+        }
+        return absRelevance;
+    }
+
     private Map<Integer, Float> getPageAndRelRltRelevance(Set<Integer> pageIdWithLemmaSet,
                                                           List<Map.Entry<String, Integer>> listLemmasAndFrequency,
                                                           int siteId) {
         Map<Integer, Float> pageIdAndRltRelevanceMap = new HashMap<>();
         for (Integer pageId : pageIdWithLemmaSet) {
-            float relativeRelevance = 0.0f;
-            for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
-                int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(),
-                        siteId).get().getLemmaId();
-                Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
-                        lemmaId);
-                if (indexEntity.isPresent()) relativeRelevance += indexEntity.get().getRank();
-            }
+            float relativeRelevance = getRelativeRelevance(listLemmasAndFrequency, siteId, pageId);
             pageIdAndRltRelevanceMap.put(pageId, relativeRelevance);
         }
         return pageIdAndRltRelevanceMap;
+    }
+
+    private float getRelativeRelevance(List<Map.Entry<String, Integer>> listLemmasAndFrequency,
+                                       int siteId, int pageId) {
+        float relativeRelevance = 0.0f;
+        for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
+            int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(),
+                    siteId).get().getLemmaId();
+            Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
+                    lemmaId);
+            if (indexEntity.isPresent()) relativeRelevance += indexEntity.get().getRank();
+        }
+        return relativeRelevance;
     }
 
     private List<Integer> sortPageByRelevance(Map<Integer, Float> pageIdAndRelevanceMap) {
@@ -271,5 +264,24 @@ public class SearchServiceImpl implements SearchService {
             }
         }
         return lemma;
+    }
+
+    private Response setResponse(boolean result, List<SearchData> searchDataList, int limit,
+                                 int offset) {
+        if (!result) {
+            FalseResponse response = new FalseResponse(false, "Пустой поисковый запрос");
+            logger.info(RESPONSE_MARKER, response.toString());
+            return response;
+        }
+        SearchResponse response = new SearchResponse();
+        response.setResult(true);
+        response.setCount(searchDataList.size());
+        if (searchDataList.size() > limit) {
+            searchDataList = searchDataList.subList(offset, limit);
+        }
+        response.setData(searchDataList);
+        logger.info(SEARCHING_MARKER, "Найдено результатов: " + response.getCount());
+        logger.info(RESPONSE_MARKER, response.toString());
+        return response;
     }
 }

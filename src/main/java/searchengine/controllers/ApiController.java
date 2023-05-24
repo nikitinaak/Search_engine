@@ -13,8 +13,6 @@ import searchengine.services.SearchService;
 import searchengine.services.IndexingService;
 import searchengine.services.StatisticsService;
 
-import java.io.IOException;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
@@ -41,16 +39,11 @@ public class ApiController {
 
     @PostMapping("/indexPage")
     public ResponseEntity<Response> indexPage(String url) {
-        try {
-            Response response = indexingService.indexPage(url);
-            if (response instanceof TrueResponse) {
-                return ResponseEntity.ok(response);
-            } else {
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-            }
-        } catch (IOException e) {
-            return new ResponseEntity<>(new FalseResponse(false, "Указанная стараница не найдена"),
-                    HttpStatus.NOT_FOUND);
+        Response response = indexingService.indexPage(url);
+        if (response instanceof TrueResponse) {
+            return ResponseEntity.ok(response);
+        } else {
+            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
         }
     }
 

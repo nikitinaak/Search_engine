@@ -23,5 +23,4 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
     int countAllPageEntityBySite(SiteEntity site);
 
     List<PageEntity> findFirst1000PageEntityBySite(SiteEntity site);
-
 }

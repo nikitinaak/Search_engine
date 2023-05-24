@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.SiteEntity;
 
+import java.util.Optional;
+
 @Transactional
 public interface SiteRepository extends JpaRepository<SiteEntity, Integer> {
 
@@ -13,5 +15,5 @@ public interface SiteRepository extends JpaRepository<SiteEntity, Integer> {
     @Query(value = "ALTER TABLE `sites` AUTO_INCREMENT = 0", nativeQuery = true)
     void resetId();
 
-    SiteEntity findSiteEntityByUrl(String url);
+    Optional<SiteEntity> findSiteEntityByUrl(String url);
 }

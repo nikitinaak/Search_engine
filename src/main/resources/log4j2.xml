@@ -10,22 +10,22 @@
         <File name="LinksFile" fileName="logs/links.log">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} - %msg%n"/>
             <Filters>
-                <MarkerFilter marker="FIND_LINK" />
+                <MarkerFilter marker="FIND_LINK"/>
             </Filters>
         </File>
 
         <File name="ResponseFile" fileName="logs/response.log">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} - %msg%n"/>
             <Filters>
-                <MarkerFilter marker="RESPONSE" />
+                <MarkerFilter marker="RESPONSE"/>
             </Filters>
         </File>
     </appenders>
 
     <loggers>
         <root level="info">
-            <appender-ref ref="LinksFile" />
-            <appender-ref ref="ResponseFile" />
+            <appender-ref ref="LinksFile"/>
+            <appender-ref ref="ResponseFile"/>
             <appender-ref ref="ExceptionsLog" level="error"/>
         </root>
     </loggers>

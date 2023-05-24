@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Data
-public class Link implements Comparable{
+public class Link implements Comparable {
     private String link;
     private Set<Link> children;
 
