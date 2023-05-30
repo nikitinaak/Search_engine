@@ -29,29 +29,36 @@ public class LemmaHandler {
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
 
+    private static volatile boolean stopped = false;
+
     public void indexingPage(PageEntity page) {
         logger.info(INDEXING_PAGE_MARKER, "Индексирует старницу: " + page.getPath());
         SiteEntity siteEntity = page.getSite();
         Map<String, Integer> lemmasMap = collectLemmas(page);
         for (Map.Entry<String, Integer> mapEntry : lemmasMap.entrySet()) {
             Optional<LemmaEntity> lemmaEntity = lemmaRepository.findFirstByLemmaAndSiteId(mapEntry.getKey(), siteEntity.getSiteId());
+            LemmaEntity lemma;
             if (lemmaEntity.isPresent()) {
-                LemmaEntity lemma = lemmaEntity.get();
+                lemma = lemmaEntity.get();
                 lemma.setFrequency(lemma.getFrequency() + 1);
-                try {
-                    lemmaRepository.save(lemma);
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                }
             } else {
-                LemmaEntity lemma = new LemmaEntity(siteEntity, mapEntry.getKey(), 1);
-                try {
-                    lemmaRepository.save(lemma);
-                    indexRepository.save(new IndexEntity(page, lemma, mapEntry.getValue()));
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                }
+                lemma = new LemmaEntity(siteEntity, mapEntry.getKey(), 1);
             }
+            IndexEntity index = new IndexEntity(page, lemma,
+                    mapEntry.getValue());
+            saveLemmaAndIndexEntityInDB(lemma, index);
+            if (stopped) {
+                break;
+            }
+        }
+    }
+
+    private void saveLemmaAndIndexEntityInDB(LemmaEntity lemma, IndexEntity index) {
+        try {
+            lemmaRepository.save(lemma);
+            indexRepository.save(index);
+        } catch (Exception e) {
+            logger.error(e.getMessage());
         }
     }
 
@@ -102,5 +109,9 @@ public class LemmaHandler {
         Document doc = Jsoup.parse(content);
         builder.append(doc.body().text());
         return builder.toString();
+    }
+
+    public void setStopped(boolean stop) {
+        stopped = stop;
     }
 }

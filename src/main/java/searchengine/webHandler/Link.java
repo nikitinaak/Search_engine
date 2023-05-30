@@ -1,7 +1,6 @@
 package searchengine.webHandler;
 
 import lombok.Data;
-import org.jsoup.Jsoup;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -9,7 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Data
-public class Link implements Comparable{
+public class Link implements Comparable {
     private String link;
     private Set<Link> children;
 

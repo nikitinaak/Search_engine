@@ -12,7 +12,6 @@ import javax.persistence.*;
 @Setter
 @NoArgsConstructor
 public class PageEntity {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

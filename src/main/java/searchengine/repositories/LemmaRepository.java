@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.LemmaEntity;
 import searchengine.model.SiteEntity;
 
+import java.util.List;
 import java.util.Optional;
 
 @Transactional
@@ -24,6 +25,11 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
 
     @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
     Optional<LemmaEntity> findLemmaByLemmaAndSiteId(String lemma, int siteId);
+
+    List<LemmaEntity> findAllByLemma(String lemma);
+
+    @Query(value = "SELECT `id` FROM `lemmas` WHERE `lemma` = :lemma", nativeQuery = true)
+    List<Integer> findAllLemmaIdByLemma(String lemma);
 
     @Modifying
     void deleteAllLemmaEntityBySite(SiteEntity site);

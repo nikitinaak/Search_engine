@@ -15,6 +15,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.RecursiveAction;
@@ -24,7 +25,7 @@ public class RecursiveParser extends RecursiveAction {
     private static Logger logger = LogManager.getLogger(RecursiveParser.class);
     private static Marker FIND_LINK_MARKER = MarkerManager.getMarker("FIND_LINK");
 
-    private static volatile boolean stopped;
+    private static volatile boolean stopped = false;
 
     private final Link currentLink;
     private final boolean firstStart;
@@ -32,7 +33,7 @@ public class RecursiveParser extends RecursiveAction {
     private final SiteEntity siteEntity;
     private final PageRepository pageRepository;
     private final IndexRepository indexRepository;
-    private  final LemmaRepository lemmaRepository;
+    private final LemmaRepository lemmaRepository;
     private final LemmaHandler lemmaHandler;
 
     private static ConcurrentSkipListSet<Link> visitedLink = new ConcurrentSkipListSet<>();
@@ -48,30 +49,7 @@ public class RecursiveParser extends RecursiveAction {
         }
         visitedLink.add(currentLink);
         try {
-            Document doc = new JsoupConnector(currentLink.getLink(), jsoupSettings).getConnection();
-            Elements elements = doc.select("a");
-            for (Element element : elements) {
-                Link newLink = new Link(element.attr("href"));
-                if (newLink.getLink().startsWith("/") && !newLink.getLink().equals("/")) {
-                    newLink.setLink(currentLink.getHost() + newLink.getLink());
-                }
-                JsoupConnector connector = new JsoupConnector(newLink.getLink(), jsoupSettings);
-                if (isWorkableLink(newLink) && isNotExistInDB(connector.getPathByUrl())) {
-                    currentLink.addChild(newLink);
-                    PageEntity pageEntity = new PageEntity(siteEntity, connector.getPathByUrl(),
-                            connector.getStatusConnectionCode(), connector.getContent());
-                    logger.info(FIND_LINK_MARKER, newLink.getLink());
-                    try {
-                        pageRepository.save(pageEntity);
-                        lemmaHandler.indexingPage(pageEntity);
-                    } catch (Exception e) {
-                        logger.error(e.getMessage());
-                    }
-                }
-                if (stopped) {
-                    return;
-                }
-            }
+            parsePage();
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
@@ -93,8 +71,42 @@ public class RecursiveParser extends RecursiveAction {
         }
     }
 
+    private void parsePage() throws IOException {
+        Document doc = new JsoupConnector(currentLink.getLink(), jsoupSettings).getConnection();
+        Elements elements = doc.select("a");
+        for (Element element : elements) {
+            Link newLink = new Link(element.attr("href"));
+            setFullLink(newLink);
+            JsoupConnector connector = new JsoupConnector(newLink.getLink(), jsoupSettings);
+            if (isWorkableLink(newLink) && isNotExistInDB(connector.getPathByUrl())) {
+                currentLink.addChild(newLink);
+                PageEntity pageEntity = new PageEntity(siteEntity, connector.getPathByUrl(),
+                        connector.getStatusConnectionCode(), connector.getContent());
+                logger.info(FIND_LINK_MARKER, newLink.getLink());
+                if (stopped) {
+                    lemmaHandler.setStopped(true);
+                    return;
+                }
+                try {
+                    pageRepository.save(pageEntity);
+                    lemmaHandler.indexingPage(pageEntity);
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void setFullLink(Link newLink) {
+        if (newLink.getLink().startsWith("/") && !newLink.getLink().equals("/")) {
+            newLink.setLink(currentLink.getHost() + newLink.getLink());
+        } else if (newLink.getLink().startsWith("ru/")) {
+            newLink.setLink(currentLink.getHost() + "/" + newLink.getLink());
+        }
+    }
+
     private boolean isWorkableLink(Link link) {
-        return  !visitedLink.contains(link)
+        return !visitedLink.contains(link)
                 && !link.getLink().equals(currentLink.getLink())
                 && link.getLink().startsWith(currentLink.getHost())
                 && !link.getLink().endsWith("jpg") && !link.getLink().endsWith("png")

@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: 8080
 
 spring:
   datasource:
@@ -19,14 +19,16 @@ spring:
 
 indexing-settings:
   sites:
-#    - url: https://lenta.ru
-#      name: Лента.ру
-    - url: https://skillbox.ru
-      name: Skillbox
     - url: http://playback.ru
       name: PlayBack.Ru
     - url: https://dombulgakova.ru
       name: Дом Булгакова
+    - url: https://bolshoi.ru
+      name: Большой Театр
+    - url: https://www.rsl.ru
+      name: Российская Государсвенная Библиотека
+    - url: https://oteatre.info
+      name: Журнал Театр
 
 jsoup-settings:
   userAgent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15
