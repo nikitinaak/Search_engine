@@ -56,14 +56,15 @@ public class SearchServiceImpl implements SearchService {
             Optional<SiteEntity> optionalSiteEntity = siteRepository.findSiteEntityByUrl(site);
             logger.info(SEARCHING_MARKER, "Поиск по сайту - " + optionalSiteEntity.get().getName());
             int siteId = optionalSiteEntity.get().getSiteId();
-            searchDataList = getSearchDataList(siteId, query,  offset, limit);
-            return setTrueResponse(searchDataList);
+            searchDataList = getSearchDataListForOneSite(siteId, query,  offset, limit);
+        } else {
+            logger.info(SEARCHING_MARKER, "Поиск по всем сайтам");
+            searchDataList = getSearchDataListForAllSite(query, offset, limit);
         }
-        searchDataList = getSearchDataList(null, query, offset, limit);
         return setTrueResponse(searchDataList);
     }
 
-    private List<SearchData> getSearchDataList(Integer siteId, String query, int offset, int limit) throws IOException {
+    private List<SearchData> getSearchDataListForOneSite(int siteId, String query, int offset, int limit) throws IOException {
         Map<Integer, String> pageIdAndLemmaMap = new HashMap<>();
         Set<Integer> pagesIdWithLemmaSet = new HashSet<>();
         List<Map.Entry<String, Integer>> listMapEntry = getListLemmasAndFrequency(query, siteId);
@@ -71,35 +72,39 @@ public class SearchServiceImpl implements SearchService {
             return new ArrayList<>();
         }
         for (Map.Entry<String, Integer> lemmaAndFrequency : listMapEntry) {
-            if (siteId != null) {
-                int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(lemmaAndFrequency.getKey(), siteId)
-                        .get().getLemmaId();
-                List<Integer> listPages = indexRepository.findAllPageIdByLemmaId(lemmaId);
-                pagesIdWithLemmaSet.addAll(listPages);
-                for (Integer pageId : listPages) {
-                    pageIdAndLemmaMap.put(pageId, lemmaAndFrequency.getKey());
-                }
-            } else {
-                List<Integer> lemmaIds = lemmaRepository.findAllLemmaIdByLemma(lemmaAndFrequency.getKey());
-                List<Integer> listPages = new ArrayList<>();
-                for (Integer lemmaId : lemmaIds) {
-                    listPages.addAll(indexRepository.findAllPageIdByLemmaId(lemmaId));
-                }
-                pagesIdWithLemmaSet.addAll(listPages);
-                for (Integer padeId : listPages) {
-                    pageIdAndLemmaMap.put(padeId, lemmaAndFrequency.getKey());
-                }
+            int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(lemmaAndFrequency.getKey(), siteId).get().getLemmaId();
+            List<Integer> listPages = indexRepository.findAllPageIdByLemmaId(lemmaId);
+            pagesIdWithLemmaSet.addAll(listPages);
+            for (Integer pageId : listPages) {
+                pageIdAndLemmaMap.put(pageId, lemmaAndFrequency.getKey());
             }
         }
-        Map<Integer, Float> pageAndRelevanceMap;
-        if (siteId != null) {
-            pageAndRelevanceMap = getPageAndAbsRelevanceMap(pagesIdWithLemmaSet, listMapEntry, siteId);
-        } else {
-            pageAndRelevanceMap = getPageAndRelRltRelevance(pagesIdWithLemmaSet, listMapEntry);
-        }
+        Map<Integer, Float> pageAndRelevanceMap = getPageAndAbsRelevanceMap(pagesIdWithLemmaSet, listMapEntry, siteId);
         List<Integer> sortedListPageIdByRelevance = sortPageByRelevance(pageAndRelevanceMap);
-        boolean searchForAllSites = siteId == null;
-        return collectSearchData(sortedListPageIdByRelevance, pageIdAndLemmaMap, pageAndRelevanceMap, offset, limit, searchForAllSites);
+        return collectSearchData(sortedListPageIdByRelevance, pageIdAndLemmaMap, pageAndRelevanceMap, offset, limit, false);
+    }
+
+    private List<SearchData> getSearchDataListForAllSite(String query, int offset, int limit) throws IOException {
+        Map<Integer, String> pageIdAndLemmaMap = new HashMap<>();
+        Set<Integer> pagesIdWithLemmaSet = new HashSet<>();
+        List<Map.Entry<String, Integer>> listMapEntry = getListLemmasAndFrequency(query, null);
+        if (listMapEntry.isEmpty()) {
+            return new ArrayList<>();
+        }
+        for (Map.Entry<String, Integer> lemmaAndFrequency : listMapEntry) {
+            List<Integer> lemmaIds = lemmaRepository.findAllLemmaIdByLemma(lemmaAndFrequency.getKey());
+            List<Integer> listPages = new ArrayList<>();
+            for (Integer lemmaId : lemmaIds) {
+                listPages.addAll(indexRepository.findAllPageIdByLemmaId(lemmaId));
+            }
+            pagesIdWithLemmaSet.addAll(listPages);
+            for (Integer padeId : listPages) {
+                pageIdAndLemmaMap.put(padeId, lemmaAndFrequency.getKey());
+            }
+        }
+        Map<Integer, Float> pageAndRelevanceMap = getPageAndRelRltRelevance(pagesIdWithLemmaSet, listMapEntry);
+        List<Integer> sortedListPageIdByRelevance = sortPageByRelevance(pageAndRelevanceMap);
+        return collectSearchData(sortedListPageIdByRelevance, pageIdAndLemmaMap, pageAndRelevanceMap, offset, limit, true);
     }
 
     private List<Map.Entry<String, Integer>> getListLemmasAndFrequency(String query, Integer siteId) throws IOException {
