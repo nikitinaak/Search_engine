@@ -23,8 +23,8 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
 
     int countAllLemmaEntityBySite(SiteEntity site);
 
-    @Query(value = "SELECT * FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
-    Optional<LemmaEntity> findLemmaByLemmaAndSiteId(String lemma, int siteId);
+    @Query(value = "SELECT `id` FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
+    Optional<Integer> findLemmaIdByLemmaAndSiteId(String lemma, int siteId);
 
     List<LemmaEntity> findAllByLemma(String lemma);
 
@@ -33,4 +33,7 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
 
     @Modifying
     void deleteAllLemmaEntityBySite(SiteEntity site);
+
+    @Query(value = "SELECT `frequency` FROM `lemmas` WHERE `lemma` = :lemma AND `site_id` = :siteId", nativeQuery = true)
+    Optional<Integer> findFrequencyByLemmaAndSiteId(String lemma, int siteId);
 }

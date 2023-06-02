@@ -22,10 +22,9 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
 
     List<IndexEntity> findAllIndexEntityByPage(PageEntity page);
 
-    @Query(value = "SELECT * FROM `indexest` WHERE `page_id` = :pageId AND `lemma_id` = :lemmaId",
-            nativeQuery = true)
-    Optional<IndexEntity> findByPageIdAndLemmaId(int pageId, int lemmaId);
-
     @Query(value = "SELECT `page_id` FROM `indexest` WHERE `lemma_id` = :lemmaId", nativeQuery = true)
     List<Integer> findAllPageIdByLemmaId(int lemmaId);
+
+    @Query(value = "SELECT `rank` FROM `indexest` WHERE `page_id` = :pageId AND `lemma_id` = :lemmaId", nativeQuery = true)
+    Optional<Float> findRankByPageIdAndLemmaId(int pageId, int lemmaId);
 }

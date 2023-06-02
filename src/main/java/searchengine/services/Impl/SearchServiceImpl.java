@@ -72,7 +72,7 @@ public class SearchServiceImpl implements SearchService {
             return new ArrayList<>();
         }
         for (Map.Entry<String, Integer> lemmaAndFrequency : listMapEntry) {
-            int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(lemmaAndFrequency.getKey(), siteId).get().getLemmaId();
+            int lemmaId = lemmaRepository.findLemmaIdByLemmaAndSiteId(lemmaAndFrequency.getKey(), siteId).get();
             List<Integer> listPages = indexRepository.findAllPageIdByLemmaId(lemmaId);
             pagesIdWithLemmaSet.addAll(listPages);
             for (Integer pageId : listPages) {
@@ -120,8 +120,8 @@ public class SearchServiceImpl implements SearchService {
             if (normalForms.isEmpty()) continue;
             String normalForm = normalForms.get(0);
             if (siteId != null) {
-                Optional<LemmaEntity> lemmaEntity = lemmaRepository.findLemmaByLemmaAndSiteId(normalForm, siteId);
-                lemmaEntity.ifPresent(entity -> mapLemmaAndFrequency.put(normalForm, entity.getFrequency()));
+                Optional<Integer> lemmaFrequency = lemmaRepository.findFrequencyByLemmaAndSiteId(normalForm, siteId);
+                lemmaFrequency.ifPresent(frequency -> mapLemmaAndFrequency.put(normalForm, frequency));
             } else {
                 List<LemmaEntity> lemmaEntities = lemmaRepository.findAllByLemma(normalForm);
                 lemmaEntities.forEach(lemmaEntity -> mapLemmaAndFrequency.put(normalForm, lemmaEntity.getFrequency()));
@@ -163,11 +163,9 @@ public class SearchServiceImpl implements SearchService {
                                        int siteId, int pageId) {
         float absRelevance = 0.0f;
         for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
-            int lemmaId = lemmaRepository.findLemmaByLemmaAndSiteId(entryMap.getKey(), siteId)
-                    .get().getLemmaId();
-            Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
-                    lemmaId);
-            if (indexEntity.isPresent()) absRelevance += indexEntity.get().getRank();
+            int lemmaId = lemmaRepository.findLemmaIdByLemmaAndSiteId(entryMap.getKey(), siteId).get();
+            Optional<Float> rank = indexRepository.findRankByPageIdAndLemmaId(pageId, lemmaId);
+            if (rank.isPresent()) absRelevance += rank.get();
         }
         return absRelevance;
     }
@@ -187,9 +185,8 @@ public class SearchServiceImpl implements SearchService {
         for (Map.Entry<String, Integer> entryMap : listLemmasAndFrequency) {
             List<Integer> lemmaIds = lemmaRepository.findAllLemmaIdByLemma(entryMap.getKey());
             for (Integer lemmaId : lemmaIds) {
-                Optional<IndexEntity> indexEntity = indexRepository.findByPageIdAndLemmaId(pageId,
-                        lemmaId);
-                if (indexEntity.isPresent()) relativeRelevance += indexEntity.get().getRank();
+                Optional<Float> rank = indexRepository.findRankByPageIdAndLemmaId(pageId, lemmaId);
+                if (rank.isPresent()) relativeRelevance += rank.get();
             }
         }
         return relativeRelevance;
@@ -204,7 +201,7 @@ public class SearchServiceImpl implements SearchService {
     private List<SearchData> collectSearchData(List<Integer> sortedListPageIdByRelevance, Map<Integer, String> pageIdAndLemmaMap,
                                                Map<Integer, Float> pageAndRelevanceMap, int offset, int limit, boolean searchForAllSites) {
         List<SearchData> searchDataList = new ArrayList<>();
-        Pageable pageable = PageRequest.of(offset, limit);
+        Pageable pageable = PageRequest.of(offset / 10, limit);
         resultCount = sortedListPageIdByRelevance.size();
         List<PageEntity> pageEntityList = pageRepository.findAllById(sortedListPageIdByRelevance, pageable);
         pageEntityList.forEach(pageEntity -> {

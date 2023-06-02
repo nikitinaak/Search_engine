@@ -122,7 +122,6 @@ public class IndexingServiceImpl implements IndexingService {
             cleanDBFromPageAndLemmas(optionalPageEntity.get());
             return optionalPageEntity.get();
         }
-
         PageEntity pageEntity = new PageEntity(siteEntity, jsoupConnector.getPathByUrl(),
                 jsoupConnector.getStatusConnectionCode(), jsoupConnector.getContent());
         pageRepository.save(pageEntity);

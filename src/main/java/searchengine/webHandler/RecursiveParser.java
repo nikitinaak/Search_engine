@@ -118,6 +118,6 @@ public class RecursiveParser extends RecursiveAction {
     }
 
     private boolean isNotExistInDB(String path) {
-        return pageRepository.findByPathAndSiteId(path, siteEntity.getSiteId()).isEmpty();
+        return pageRepository.findCountByPathAndSiteId(path, siteEntity.getSiteId()) == 0;
     }
 }

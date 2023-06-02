@@ -28,4 +28,7 @@ public interface PageRepository extends PagingAndSortingRepository<PageEntity, I
 
     @Query(value = "SELECT * FROM `pages` WHERE `id` IN :ids", nativeQuery = true)
     List<PageEntity> findAllById(@Param("ids") List<Integer> ids, Pageable pageable);
+
+    @Query(value = "SELECT COUNT(*) FROM `pages` WHERE `path` = :path AND `site_id` = :siteId", nativeQuery = true)
+    int findCountByPathAndSiteId(String path, int siteId);
 }
