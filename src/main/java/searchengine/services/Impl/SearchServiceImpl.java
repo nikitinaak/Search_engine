@@ -17,7 +17,6 @@ import searchengine.dto.responses.Response;
 import searchengine.dto.searching.SearchData;
 import searchengine.dto.searching.SearchResponse;
 
-import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
