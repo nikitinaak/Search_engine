@@ -90,7 +90,7 @@ public class SearchServiceImpl implements SearchService {
                 pageIdAndLemmaMap.put(pageId, lemmaAndFrequency.getKey());
             }
         }
-        pageAndRelevanceMap = getPageAndAbsRelevanceMap(pagesIdWithLemmaSet, listMapEntry, siteId);
+        pageAndRelevanceMap = getPageAndAbsRelevanceMap(pagesIdWithLemmaSet, listMapEntry);
         sortedListPageIdByRelevance = sortPageByRelevance(pageAndRelevanceMap);
         return collectSearchData(offset, limit, false);
     }
@@ -158,8 +158,7 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private Map<Integer, Float> getPageAndAbsRelevanceMap(Set<Integer> pageIdWithLemmaSet,
-                                                          List<Map.Entry<String, Integer>> listLemmasAndFrequency,
-                                                          int siteId) {
+                                                          List<Map.Entry<String, Integer>> listLemmasAndFrequency) {
         Map<Integer, Float> pageAndAbsRelevanceMap = new HashMap<>();
         float maxAbsRelevance = 0.0f;
         for (Integer pageId : pageIdWithLemmaSet) {
