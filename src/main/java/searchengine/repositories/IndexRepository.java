@@ -8,7 +8,6 @@ import searchengine.model.IndexEntity;
 import searchengine.model.PageEntity;
 
 import java.util.List;
-import java.util.Optional;
 
 @Transactional
 public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
@@ -25,6 +24,9 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
     @Query(value = "SELECT `page_id` FROM `indexest` WHERE `lemma_id` = :lemmaId", nativeQuery = true)
     List<Integer> findAllPageIdByLemmaId(int lemmaId);
 
-    @Query(value = "SELECT `rank` FROM `indexest` WHERE `page_id` = :pageId AND `lemma_id` = :lemmaId", nativeQuery = true)
-    Optional<Float> findRankByPageIdAndLemmaId(int pageId, int lemmaId);
+    @Query(value = "SELECT `page_id` FROM `indexest` WHERE `lemma_id` IN :lemmaIds", nativeQuery = true)
+    List<Integer> findAllPageIdByLemmaIds(List<Integer> lemmaIds);
+
+    @Query(value = "SELECT `rank` FROM `indexest` WHERE `lemma_id` IN :ids AND `page_id` = :pageId", nativeQuery = true)
+    List<Float> findAllRankByPageIdAndLemmaId(int pageId, List<Integer> ids);
 }
